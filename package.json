@@ -1,0 +1,11 @@
+{
+  "name": "model-string-reader",
+  "version": "0.0.1",
+  "description": "Reader for JS model string",
+  "main": "lib/",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "jhonMr",
+  "license": "ISC"
+}
