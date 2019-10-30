@@ -5,8 +5,8 @@
   "main": "lib/",
   "scripts": {
     "build": "npx babel src --out-dir lib",
-    "test-inspect": "node --inspect-brk=9229 test test/model.js",
-    "test": "node test test/model.js"
+    "test-inspect": "node --inspect-brk=9229 test",
+    "test": "node test"
   },
   "author": "jhonMr",
   "license": "ISC",

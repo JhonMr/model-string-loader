@@ -1,0 +1,152 @@
+const esprima = require('esprima');
+const babel = require("@babel/core");
+function ES62ES5(code){
+  const regexp1 = /export default/gim;
+  code = code.replace(regexp1, 'exports.default=');
+  const regexp2 = /export\s+{([^}]+)}/gim;
+  code = code.replace(regexp2, function(matchStr, catchStr) {
+    let catchVeriates = catchStr.replace(/\s/gi, '').split(',');
+    let result = '';
+    catchVeriates.map((v)=>{
+      result += `exports.${v}=${v};`
+    });
+    return result;
+  });
+  return code;
+}
+function analyze(source) {
+	source = ES62ES5(source);
+	const ast = esprima.parse(source);
+	const astBody = ast.body;
+	const global = {};
+	for(let i=0; i< astBody.length; i++){
+		let item = astBody[i];
+		// 变量定义
+		if(item.type==='VariableDeclaration') {
+			item.declarations.map(variate=>{
+				global[variate.id.name] = undefined;
+				// 变量类型
+				switch(variate.init.type) {
+					// 常量
+					case "Literal":
+						global[variate.id.name] = variate.init.value;
+						break;
+					// 数组
+					case "ArrayExpression":
+						global[variate.id.name] = toArray(variate.init.elements, global);
+						break;
+					// 对象
+					case "ObjectExpression":
+						global[variate.id.name] = toObject(variate.init.properties, global);
+						break;
+					// 直接赋值其他变量
+					case "Identifier":
+						global[variate.id.name] = global[variate.init.name];
+						break;
+					// 传递其他对象的属性
+					case "MemberExpression":
+						if(variate.init.computed) {
+							global[variate.id.name] = computedMemberExpression(variate.init, global);
+						}
+						break;
+					default:
+						global[variate.id.name] = '特殊类型：' + variate.init.type;
+				}
+			})
+		}
+		// 赋值
+		if(item.type==='ExpressionStatement'){
+			let left = item.expression.left;
+			let right = item.expression.right;
+			if(left.object)
+				global[left.object.name] = global[left.object.name] || {};
+			if(left.property) {
+				// 常量
+				if(right.type==='Literal') {
+					global[left.object.name][left.property.name] = right.value;
+				}
+				// 变量
+				if(right.type==='Identifier') {
+					global[left.object.name][left.property.name] = global[right.name]
+				}
+				// 表达式（计算）
+				if(right.type==='BinaryExpression') {
+					global[left.object.name][left.property.name] = compute(right.left.value, right.right.value, right.operator);
+				}
+			}
+
+		}
+	}
+	return global;
+}
+function compute(a, b, operator) {
+	return eval(a+operator+b);
+}
+function toArray(elements, global, array=[]) {
+	elements.map(item=>{
+		switch(item.type) {
+			case 'Literal':
+				array.push(item.value);
+				break;
+			case "Identifier":
+			  array.push(global[item.name]);
+			  break;	
+			case "MemberExpression":
+				array.push(computedMemberExpression(item, global));
+				break;
+			case 'ArrayExpression':
+				array.push(toArray(item.init.elements, global));
+				break;
+			case "ObjectExpression":
+				array.push(toObject(item.init.properties, global));
+				break;
+		}
+	})
+	return array
+}
+function toObject(properties, global, object={}) {
+	properties.map(item=>{
+		let key = item.key.name;
+		let value = item.value;
+		switch(value.type) {
+			case 'Literal':
+				object[key] = value.value;
+				break;
+			case "Identifier":
+			    object[key] = global[value.name];
+			    break;	
+			case "MemberExpression":
+				object[key] = computedMemberExpression(value, global);
+				break;
+			case 'ArrayExpression':
+				object[key] = toArray(value.elements, global);
+				break;
+			case "ObjectExpression":
+				object[key] = toObject(value.properties, global);
+				break;
+		}
+	})
+	return object;
+}
+function computedMemberExpression(expression, global) {
+	let paths = memberExpressionPath(expression),
+		g = global;
+	paths.map(path=>{
+		g = g[path];
+	})
+	return g;
+}
+function memberExpressionPath(expression, path=[]) {
+	if(expression.object.type === 'MemberExpression') {
+	  memberExpressionPath(expression.object, path);
+	}
+	else {
+		path.push(expression.object.name);
+	}
+	if(expression.property.type === 'Literal')
+		path.push(expression.property.value);
+	else
+		path.push(expression.property.name);
+	return path
+}
+module.exports = analyze
