@@ -1,0 +1,22 @@
+{
+  "name": "model-string-reader",
+  "version": "0.0.1",
+  "description": "Reader for JS model string",
+  "main": "lib/",
+  "scripts": {
+    "build": "npx babel src --out-dir lib",
+    "test-inspect": "node --inspect-brk=9229 test test/model.js",
+    "test": "node test test/model.js"
+  },
+  "author": "jhonMr",
+  "license": "ISC",
+  "dependencies": {
+    "esprima": "^4.0.1"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.6.4",
+    "@babel/core": "^7.6.4",
+    "@babel/preset-env": "^7.6.3",
+    "fs": "0.0.1-security"
+  }
+}
