@@ -18,7 +18,9 @@ function analyze(source) {
 	source = ES62ES5(source);
 	const ast = esprima.parse(source);
 	const astBody = ast.body;
-	const global = {};
+	const global = {
+		exports: {}
+	};
 	for(let i=0; i< astBody.length; i++){
 		let item = astBody[i];
 		// 变量定义
@@ -45,9 +47,13 @@ function analyze(source) {
 						break;
 					// 传递其他对象的属性
 					case "MemberExpression":
-						if(variate.init.computed) {
-							global[variate.id.name] = computedMemberExpression(variate.init, global);
-						}
+						//if(variate.init.computed) {
+							global[variate.id.name] = getMemberExpressionValue(variate.init, global);
+						//}
+						break;
+					// 计算
+					case "BinaryExpression": 
+						global[variate.id.name] = compute(variate.init, global)
 						break;
 					default:
 						global[variate.id.name] = '特殊类型：' + variate.init.type;
@@ -58,29 +64,50 @@ function analyze(source) {
 		if(item.type==='ExpressionStatement'){
 			let left = item.expression.left;
 			let right = item.expression.right;
-			if(left.object)
-				global[left.object.name] = global[left.object.name] || {};
-			if(left.property) {
-				// 常量
-				if(right.type==='Literal') {
-					global[left.object.name][left.property.name] = right.value;
-				}
-				// 变量
-				if(right.type==='Identifier') {
-					global[left.object.name][left.property.name] = global[right.name]
-				}
-				// 表达式（计算）
-				if(right.type==='BinaryExpression') {
-					global[left.object.name][left.property.name] = compute(right.left.value, right.right.value, right.operator);
-				}
+			let value = undefined;
+			switch(item.operator) {
+				case '=':
+				
+					break;
 			}
-
+			switch(right.type){
+				// 常量
+				case 'Literal':
+					value = right.value;
+					break;
+				// 变量
+				case 'Identifier':
+					value = global[right.name]
+					break;
+				// 直接赋值其他变量
+				case "Identifier":
+					value = global[variate.init.name];
+					break;
+				case 'BinaryExpression':
+					value = compute(right.left.value, right.right.value, right.operator);
+					break;
+			}
+			switch(left.type) {
+				// 变量
+				case 'Identifier':
+					global[left.name] = value;
+					break;
+				case "MemberExpression":
+					setMemberExpressionValue(left, global, value);
+					break;
+			}
 		}
 	}
 	return global;
 }
-function compute(a, b, operator) {
-	return eval(a+operator+b);
+
+
+function compute(expression, global) {
+	let left = expression.left;
+	let right = expression.right;
+	let leftValue = undefined;
+	let rightValue = undefined;
+	
 }
 function toArray(elements, global, array=[]) {
 	elements.map(item=>{
@@ -92,7 +119,7 @@ function toArray(elements, global, array=[]) {
 			  array.push(global[item.name]);
 			  break;	
 			case "MemberExpression":
-				array.push(computedMemberExpression(item, global));
+				array.push(getMemberExpressionValue(item, global));
 				break;
 			case 'ArrayExpression':
 				array.push(toArray(item.init.elements, global));
@@ -116,7 +143,7 @@ function toObject(properties, global, object={}) {
 			    object[key] = global[value.name];
 			    break;	
 			case "MemberExpression":
-				object[key] = computedMemberExpression(value, global);
+				object[key] = getMemberExpressionValue(value, global);
 				break;
 			case 'ArrayExpression':
 				object[key] = toArray(value.elements, global);
@@ -128,7 +155,7 @@ function toObject(properties, global, object={}) {
 	})
 	return object;
 }
-function computedMemberExpression(expression, global) {
+function getMemberExpressionValue(expression, global) {
 	let paths = memberExpressionPath(expression),
 		g = global;
 	paths.map(path=>{
@@ -148,5 +175,14 @@ function memberExpressionPath(expression, path=[]) {
 	else
 		path.push(expression.property.name);
 	return path
+}
+function setMemberExpressionValue(expression, global, value) { 
+	let paths = memberExpressionPath(expression),
+	g = global;
+	let lastPath = paths.pop();
+	paths.map(path=>{
+		g = g[path];
+	})
+	g[lastPath] = value;
 }
 module.exports = analyze

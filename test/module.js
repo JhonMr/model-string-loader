@@ -10,11 +10,17 @@ var defaultAge = 20,
 		groupLeader: {
 			name: 'LI',
 		},
-		parter: 'XI'
+		parter: {
+			name: 'XI',
+			
+		}
 	};
 
 var monitor = defaultsFramework.monitor.name;
+var manages = [defaultStudents[0], defaultsFramework.groupLeader.name];
 maxAge = 6;
-//defaultsFramework.groupLeader.age = defaultAge + maxAge;
+defaultsFramework.groupLeader.age = 10;
+var num = 10 + maxAge;
+defaultsFramework.parter.age = maxAge + defaultsFramework.groupLeader.age;
 
 exports.monitor = monitor;
